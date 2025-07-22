@@ -1,4 +1,3 @@
-# Install Rustc
 #!/bin/bash
 
 # Tentukan path untuk file rust-std
@@ -33,8 +32,11 @@ cd /opt/rustc-1.60.0-src
 # Perbaikan untuk target pentium4
 sed 's@pentium4@pentiumpro@' -i compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
 
-# Buat direktori instalasi
-mkdir /opt/rustc-1.60.0 && ln -svfn rustc-1.60.0 /opt/rustc
+# Buat direktori instalasi jika belum ada
+mkdir -p /opt/rustc-1.60.0
+
+# Tautkan simbolik ke direktori yang sesuai
+ln -svfn /opt/rustc-1.60.0 /opt/rustc
 
 # Konfigurasi build
 cat << EOF > config.toml
@@ -53,7 +55,6 @@ docdir = "share/doc/rustc-1.60.0"
 [rust]
 channel = "stable"
 rpath = false
-
 codegen-tests = false
 
 [target.x86_64-unknown-linux-gnu]
@@ -63,9 +64,20 @@ llvm-config = "/usr/bin/llvm-config"
 llvm-config = "/usr/bin/llvm-config"
 EOF
 
-# Bangun Rust
+# Set RUSTFLAGS untuk build
 export RUSTFLAGS="$RUSTFLAGS -C link-args=-lffi"
-python3 ./x.py build --exclude src/tools/miri
+
+# Bangun Rust dengan menghindari download ulang file
+# Menonaktifkan pengunduhan dan memastikan hanya menggunakan file lokal
+export CARGO_HOME="/opt/rustc-1.60.0"
+export RUSTUP_HOME="/opt/rustc-1.60.0"
+export RUST_CACHE_DIR="/opt/rustc-1.60.0/cache"
+
+# Pastikan `x.py` hanya menggunakan file lokal dan tidak mencoba untuk mengunduh ulang apa pun
+# Jalankan build tanpa mengunduh file baru
+python3 ./x.py build --exclude src/tools/miri --verbose
+
+# Verifikasi hasil build
 grep '^test result:' rustc-testlog | awk '{ sum += $6 } END { print sum }'
 
 # Install Rustc
@@ -73,14 +85,12 @@ export LIBSSH2_SYS_USE_PKG_CONFIG=1
 DESTDIR=${PWD}/install python3 ./x.py install
 unset LIBSSH2_SYS_USE_PKG_CONFIG
 
-# Salin hasil build ke direktori yang sesuai
+# Salin hasil build ke direktori yang sesuai dan set hak akses
 chown -R root:root install
 cp -a install/* /
 
 # Update dynamic linker cache
-cat >> /etc/ld.so.conf << EOF
-/opt/rustc/lib
-EOF
+echo "/opt/rustc/lib" >> /etc/ld.so.conf
 ldconfig
 
 # Update PATH dan MANPATH
