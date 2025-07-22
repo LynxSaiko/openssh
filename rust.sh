@@ -1,21 +1,34 @@
 #!/bin/bash
 
 # Cek apakah file rust-std sudah ada, jika ada lewati unduhan
-FILE_PATH="rust-std-1.59.0-x86_64-unknown-linux-gnu.tar.xz"
+FILE_PATH="/opt/rust-std-1.59.0-x86_64-unknown-linux-gnu.tar.xz"
 if [ ! -f "$FILE_PATH" ]; then
-  echo "File tidak ditemukan, mengunduh file..."
+  echo "File rust-std tidak ditemukan, mengunduh file..."
   curl -k -O https://static.rust-lang.org/dist/rust-std-1.59.0-x86_64-unknown-linux-gnu.tar.xz
 else
-  echo "File sudah ada, melanjutkan proses ekstraksi..."
+  echo "File rust-std sudah ada, melanjutkan proses ekstraksi..."
 fi
 
 # Ekstrak file rust-std
-tar -xf $FILE_PATH
+tar -xf $FILE_PATH -C /opt/
 
-# Proses instalasi Rustc
-cd rustc-1.60.0-src
+# Cek apakah file rustc-1.60.0-src sudah ada, jika ada lewati unduhan
+RUSTC_FILE_PATH="/opt/rustc-1.60.0-src.tar.xz"
+if [ ! -f "$RUSTC_FILE_PATH" ]; then
+  echo "File rustc tidak ditemukan, mengunduh file..."
+  wget --no-check-certificate https://static.rust-lang.org/dist/rustc-1.60.0-src.tar.xz -P /opt/
+else
+  echo "File rustc sudah ada, melanjutkan proses ekstraksi..."
+fi
+
+# Ekstrak file rustc
+tar -xf $RUSTC_FILE_PATH -C /opt/
+cd /opt/rustc-1.60.0-src
+
+# Perbaikan untuk target pentium4
 sed 's@pentium4@pentiumpro@' -i compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
 
+# Buat direktori instalasi
 mkdir /opt/rustc-1.60.0 && ln -svfn rustc-1.60.0 /opt/rustc
 
 # Konfigurasi build
@@ -54,6 +67,8 @@ grep '^test result:' rustc-testlog | awk '{ sum += $6 } END { print sum }'
 export LIBSSH2_SYS_USE_PKG_CONFIG=1
 DESTDIR=${PWD}/install python3 ./x.py install
 unset LIBSSH2_SYS_USE_PKG_CONFIG
+
+# Salin hasil build ke direktori yang sesuai
 chown -R root:root install
 cp -a install/* /
 
