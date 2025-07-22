@@ -1,24 +1,29 @@
+# Install Rustc
 #!/bin/bash
 
-# Cek apakah file rust-std sudah ada, jika ada lewati unduhan
+# Tentukan path untuk file rust-std
 FILE_PATH="/opt/rust-std-1.59.0-x86_64-unknown-linux-gnu.tar.xz"
-if [ ! -f "$FILE_PATH" ]; then
-  echo "File rust-std tidak ditemukan, mengunduh file..."
-  curl -k -O https://static.rust-lang.org/dist/rust-std-1.59.0-x86_64-unknown-linux-gnu.tar.xz
-else
+
+# Cek apakah file rust-std sudah ada, jika ada melanjutkan ekstraksi
+if [ -f "$FILE_PATH" ]; then
   echo "File rust-std sudah ada, melanjutkan proses ekstraksi..."
+else
+  echo "File rust-std tidak ditemukan!"
+  exit 1
 fi
 
 # Ekstrak file rust-std
 tar -xf $FILE_PATH -C /opt/
 
-# Cek apakah file rustc-1.60.0-src sudah ada, jika ada lewati unduhan
+# Tentukan path untuk file rustc-1.60.0-src
 RUSTC_FILE_PATH="/opt/rustc-1.60.0-src.tar.xz"
-if [ ! -f "$RUSTC_FILE_PATH" ]; then
-  echo "File rustc tidak ditemukan, mengunduh file..."
-  wget --no-check-certificate https://static.rust-lang.org/dist/rustc-1.60.0-src.tar.xz -P /opt/
-else
+
+# Cek apakah file rustc sudah ada, jika ada melanjutkan ekstraksi
+if [ -f "$RUSTC_FILE_PATH" ]; then
   echo "File rustc sudah ada, melanjutkan proses ekstraksi..."
+else
+  echo "File rustc tidak ditemukan!"
+  exit 1
 fi
 
 # Ekstrak file rustc
