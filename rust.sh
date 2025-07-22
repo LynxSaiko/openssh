@@ -1,27 +1,31 @@
 #!/bin/bash
-wget --no-check-certificate https://static.rust-lang.org/dist/rustc-1.60.0-src.tar.xz
-tar -xf rustc-1.60.0-src.tar.xz
-cd rustc-1.60.0-src
-sed 's@pentium4@pentiumpro@' -i \
-    compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
-mkdir /opt/rustc-1.60.0             &&
-ln -svfn rustc-1.60.0 /opt/rustc
-cat << EOF > config.toml
-# see config.toml.example for more possible options
-# See the 8.4 book for an example using shipped LLVM
-# e.g. if not installing clang, or using a version before 10.0
-[llvm]
-# by default, rust will build for a myriad of architectures
-targets = "X86"
 
-# When using system llvm prefer shared libraries
+# Cek apakah file rust-std sudah ada, jika ada lewati unduhan
+FILE_PATH="rust-std-1.59.0-x86_64-unknown-linux-gnu.tar.xz"
+if [ ! -f "$FILE_PATH" ]; then
+  echo "File tidak ditemukan, mengunduh file..."
+  curl -k -O https://static.rust-lang.org/dist/rust-std-1.59.0-x86_64-unknown-linux-gnu.tar.xz
+else
+  echo "File sudah ada, melanjutkan proses ekstraksi..."
+fi
+
+# Ekstrak file rust-std
+tar -xf $FILE_PATH
+
+# Proses instalasi Rustc
+cd rustc-1.60.0-src
+sed 's@pentium4@pentiumpro@' -i compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
+
+mkdir /opt/rustc-1.60.0 && ln -svfn rustc-1.60.0 /opt/rustc
+
+# Konfigurasi build
+cat << EOF > config.toml
+[llvm]
+targets = "X86"
 link-shared = true
 
 [build]
-# omit docs to save time and space (default is to build them)
 docs = false
-
-# install cargo as well as rust
 extended = true
 
 [install]
@@ -32,48 +36,40 @@ docdir = "share/doc/rustc-1.60.0"
 channel = "stable"
 rpath = false
 
-# BLFS does not install the FileCheck executable from llvm,
-# so disable codegen tests
 codegen-tests = false
+
 [target.x86_64-unknown-linux-gnu]
-# NB the output of llvm-config (i.e. help options) may be
-# dumped to the screen when config.toml is parsed.
 llvm-config = "/usr/bin/llvm-config"
 
 [target.i686-unknown-linux-gnu]
-# NB the output of llvm-config (i.e. help options) may be
-# dumped to the screen when config.toml is parsed.
 llvm-config = "/usr/bin/llvm-config"
 EOF
 
-export RUSTFLAGS="$RUSTFLAGS -C link-args=-lffi" &&
+# Bangun Rust
+export RUSTFLAGS="$RUSTFLAGS -C link-args=-lffi"
 python3 ./x.py build --exclude src/tools/miri
-grep '^test result:' rustc-testlog | awk  '{ sum += $6 } END { print sum }'
-export LIBSSH2_SYS_USE_PKG_CONFIG=1 &&
-DESTDIR=${PWD}/install python3 ./x.py install &&
+grep '^test result:' rustc-testlog | awk '{ sum += $6 } END { print sum }'
+
+# Install Rustc
+export LIBSSH2_SYS_USE_PKG_CONFIG=1
+DESTDIR=${PWD}/install python3 ./x.py install
 unset LIBSSH2_SYS_USE_PKG_CONFIG
-chown -R root:root install &&
+chown -R root:root install
 cp -a install/* /
 
+# Update dynamic linker cache
 cat >> /etc/ld.so.conf << EOF
-# Begin rustc addition
-
 /opt/rustc/lib
-
-# End rustc addition
 EOF
-
 ldconfig
-cat > /etc/profile.d/rustc.sh << EOF
-# Begin /etc/profile.d/rustc.sh
 
+# Update PATH dan MANPATH
+cat > /etc/profile.d/rustc.sh << EOF
 export PATH=\$PATH:/opt/rustc/bin
 export MANPATH=\$MANPATH:/opt/rustc/share/man
-
-# End /etc/profile.d/rustc.sh
 EOF
 
-# Update current shell environment
+# Memperbarui lingkungan shell saat ini
 source /etc/profile.d/rustc.sh
 
 echo "Selesai"
