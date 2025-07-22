@@ -1,42 +1,33 @@
 #!/bin/bash
 
-# Tentukan path untuk file rust-std
-FILE_PATH="/opt/rust-std-1.59.0-x86_64-unknown-linux-gnu.tar.xz"
+# Path file sumber Rust
+RUST_STD_PATH="/opt/rust-std-1.59.0-x86_64-unknown-linux-gnu.tar.xz"
+RUSTC_SRC_PATH="/opt/rustc-1.60.0-src.tar.xz"
 
-# Cek apakah file rust-std sudah ada, jika ada melanjutkan ekstraksi
-if [ -f "$FILE_PATH" ]; then
-  echo "File rust-std sudah ada, melanjutkan proses ekstraksi..."
-else
-  echo "File rust-std tidak ditemukan!"
-  exit 1
-fi
+# Fungsi untuk cek dan ekstrak file
+extract_file() {
+  if [ -f "$1" ]; then
+    echo "Ekstrak $1 ke /opt/"
+    tar -xf "$1" -C /opt/
+  else
+    echo "Error: File $1 tidak ditemukan!"
+    exit 1
+  fi
+}
 
-# Ekstrak file rust-std
-tar -xf $FILE_PATH -C /opt/
+# Ekstrak file
+extract_file "$RUST_STD_PATH"
+extract_file "$RUSTC_SRC_PATH"
 
-# Tentukan path untuk file rustc-1.60.0-src
-RUSTC_FILE_PATH="/opt/rustc-1.60.0-src.tar.xz"
+# Masuk ke direktori sumber Rust
+cd /opt/rustc-1.60.0-src || exit 1
 
-# Cek apakah file rustc sudah ada, jika ada melanjutkan ekstraksi
-if [ -f "$RUSTC_FILE_PATH" ]; then
-  echo "File rustc sudah ada, melanjutkan proses ekstraksi..."
-else
-  echo "File rustc tidak ditemukan!"
-  exit 1
-fi
-
-# Ekstrak file rustc
-tar -xf $RUSTC_FILE_PATH -C /opt/
-cd /opt/rustc-1.60.0-src
-
-# Perbaikan untuk target pentium4
+# Perbaiki target pentium4
 sed 's@pentium4@pentiumpro@' -i compiler/rustc_target/src/spec/i686_unknown_linux_gnu.rs
 
-# Buat direktori instalasi jika belum ada
-mkdir -p /opt/rustc-1.60.0
-
-# Tautkan simbolik ke direktori yang sesuai
-ln -svfn /opt/rustc-1.60.0 /opt/rustc
+# Buat direktori instalasi
+sudo mkdir -p /opt/rustc-1.60.0
+sudo ln -svfn /opt/rustc-1.60.0 /opt/rustc
 
 # Konfigurasi build
 cat << EOF > config.toml
@@ -47,10 +38,10 @@ link-shared = true
 [build]
 docs = false
 extended = true
+locked-deps = true  # Hindari pengunduhan
 
 [install]
 prefix = "/opt/rustc-1.60.0"
-docdir = "share/doc/rustc-1.60.0"
 
 [rust]
 channel = "stable"
@@ -64,42 +55,34 @@ llvm-config = "/usr/bin/llvm-config"
 llvm-config = "/usr/bin/llvm-config"
 EOF
 
-# Set RUSTFLAGS untuk build
-export RUSTFLAGS="$RUSTFLAGS -C link-args=-lffi"
+# Set variabel lingkungan untuk offline build
+export CARGO_HOME="/opt/rustc-1.60.0/cargo"
+export RUSTUP_HOME="/opt/rustc-1.60.0/rustup"
+export RUSTFLAGS="-C link-args=-lffi"
+export CARGO_NET_OFFLINE=true
 
-# Bangun Rust dengan menghindari download ulang file
-# Menonaktifkan pengunduhan dan memastikan hanya menggunakan file lokal
-export CARGO_HOME="/opt/rustc-1.60.0"
-export RUSTUP_HOME="/opt/rustc-1.60.0"
-export RUST_CACHE_DIR="/opt/rustc-1.60.0/cache"
+# Build Rust
+echo "Memulai build Rust (mungkin memakan waktu lama)..."
+python3 ./x.py build --exclude src/tools/miri --verbose || {
+  echo "Error: Build gagal!"
+  exit 1
+}
 
-# Pastikan `x.py` hanya menggunakan file lokal dan tidak mencoba untuk mengunduh ulang apa pun
-# Jalankan build tanpa mengunduh file baru
-python3 ./x.py build --exclude src/tools/miri --verbose
+# Install Rust
+echo "Memulai instalasi..."
+DESTDIR=/opt/rustc-1.60.0 python3 ./x.py install || {
+  echo "Error: Instalasi gagal!"
+  exit 1
+}
 
-# Verifikasi hasil build
-grep '^test result:' rustc-testlog | awk '{ sum += $6 } END { print sum }'
+# Update linker dan PATH
+sudo echo "/opt/rustc/lib" >> /etc/ld.so.conf
+sudo ldconfig
 
-# Install Rustc
-export LIBSSH2_SYS_USE_PKG_CONFIG=1
-DESTDIR=${PWD}/install python3 ./x.py install
-unset LIBSSH2_SYS_USE_PKG_CONFIG
-
-# Salin hasil build ke direktori yang sesuai dan set hak akses
-chown -R root:root install
-cp -a install/* /
-
-# Update dynamic linker cache
-echo "/opt/rustc/lib" >> /etc/ld.so.conf
-ldconfig
-
-# Update PATH dan MANPATH
-cat > /etc/profile.d/rustc.sh << EOF
+cat << EOF | sudo tee /etc/profile.d/rustc.sh
 export PATH=\$PATH:/opt/rustc/bin
 export MANPATH=\$MANPATH:/opt/rustc/share/man
 EOF
 
-# Memperbarui lingkungan shell saat ini
 source /etc/profile.d/rustc.sh
-
-echo "Selesai"
+echo "Instalasi selesai. Jalankan 'source /etc/profile.d/rustc.sh' atau buka shell baru."
