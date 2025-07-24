@@ -26,8 +26,6 @@ else
     echo "Mengekstrak ${RUST_ARCHIVE}..."
     tar -xf ${RUST_ARCHIVE}
 
-    # 3. Hapus arsip setelah ekstraksi
-
     # 4. Masuk ke direktori Rustc
     cd $RUST
 
@@ -59,7 +57,8 @@ EOF
 
     # 6. Menyusun Rustc
     export RUSTFLAGS="$RUSTFLAGS -C link-args=-lffi"
-    python3 ./x.py build --exclude src/tools/miri
+    NUM_CORES=$(nproc)
+    python3 ./x.py build -j$NUM_CORES --exclude src/tools/miri
 
     # 7. Menjalankan tes (opsional, bisa menambah waktu build)
     # python3 ./x.py test --verbose --no-fail-fast | tee rustc-testlog
