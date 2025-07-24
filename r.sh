@@ -74,7 +74,7 @@ EOF
     cp -a install/* /
 
     # 10. Membersihkan hasil build
-    rm -rf rustc-${RUST_VERSION}
+    #rm -rf rustc-${RUST_VERSION}
 fi
 
 # 11. Membuat symlink Rustc di /opt
