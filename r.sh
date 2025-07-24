@@ -7,7 +7,8 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Variabel konfigurasi
-RUST_VERSION="1.60.0-src"
+RUST_VERSION="1.60.0"
+RUST="/opt/rustc-1.60.0-src"
 RUST_ARCHIVE="rustc-${RUST_VERSION}-src.tar.xz"
 RUST_URL="https://static.rust-lang.org/dist/${RUST_ARCHIVE}"
 RUST_DIR="/opt/rustc-${RUST_VERSION}"
@@ -28,7 +29,7 @@ else
     # 3. Hapus arsip setelah ekstraksi
 
     # 4. Masuk ke direktori Rustc
-    cd rustc-${RUST_VERSION}
+    cd $RUST
 
     # 5. Membuat file konfigurasi config.toml
     echo "Membuat konfigurasi build Rust..."
