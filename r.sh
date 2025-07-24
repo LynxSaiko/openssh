@@ -72,9 +72,6 @@ EOF
     # 9. Pindahkan hasil instalasi ke sistem
     chown -R root:root install
     cp -a install/* /
-
-    # 10. Membersihkan hasil build
-    #rm -rf rustc-${RUST_VERSION}
 fi
 
 # 11. Membuat symlink Rustc di /opt
