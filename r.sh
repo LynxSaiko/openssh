@@ -7,7 +7,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Variabel konfigurasi
-RUST_VERSION="1.60.0"
+RUST_VERSION="1.60.0-src"
 RUST_ARCHIVE="rustc-${RUST_VERSION}-src.tar.xz"
 RUST_URL="https://static.rust-lang.org/dist/${RUST_ARCHIVE}"
 RUST_DIR="/opt/rustc-${RUST_VERSION}"
@@ -26,7 +26,6 @@ else
     tar -xf ${RUST_ARCHIVE}
 
     # 3. Hapus arsip setelah ekstraksi
-    rm ${RUST_ARCHIVE}
 
     # 4. Masuk ke direktori Rustc
     cd rustc-${RUST_VERSION}
@@ -90,10 +89,10 @@ ldconfig
 echo "Menyiapkan skrip konfigurasi untuk Rustc..."
 cat > /etc/profile.d/rustc.sh << EOF
 # Menambahkan Rustc ke dalam PATH
-pathprepend /opt/rustc/bin PATH
+export PATH="/opt/rustc/bin:$PATH"
 
 # Menambahkan Rustc manpages ke MANPATH
-pathappend /opt/rustc/share/man MANPATH
+export MANPATH="/opt/rustc/share/man:$MANPATH"
 EOF
 
 # 14. Memperbarui PATH untuk shell yang sedang berjalan
