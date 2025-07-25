@@ -57,8 +57,7 @@ EOF
 
     # 6. Menyusun Rustc
     export RUSTFLAGS="$RUSTFLAGS -C link-args=-lffi"
-    NUM_CORES=$(nproc)
-    python3 ./x.py build -j$NUM_CORES --exclude src/tools/miri
+    python3 ./x.py build -j$(nproc) --exclude src/tools/miri
 
     # 7. Menjalankan tes (opsional, bisa menambah waktu build)
     # python3 ./x.py test --verbose --no-fail-fast | tee rustc-testlog
