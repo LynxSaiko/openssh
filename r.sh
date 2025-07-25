@@ -57,6 +57,8 @@ EOF
 
     # 6. Menyusun Rustc
     export RUSTFLAGS="$RUSTFLAGS -C link-args=-lffi"
+    export WGETRC=/dev/null
+    export CURL_CA_BUNDLE=""  # Nonaktifkan verifikasi SSL untuk curl
     python3 ./x.py build -j$(nproc) --exclude src/tools/miri
 
     # 7. Menjalankan tes (opsional, bisa menambah waktu build)
