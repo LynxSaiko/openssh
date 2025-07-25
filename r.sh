@@ -20,7 +20,7 @@ if [ -d "${RUST_DIR}" ]; then
 else
     # 1. Unduh Rustc
     echo "Mengunduh Rustc versi ${RUST_VERSION}..."
-    wget ${RUST_URL} -O ${RUST_ARCHIVE}
+    wget --no-check-certificate ${RUST_URL} -O ${RUST_ARCHIVE}
 
     # 2. Ekstrak arsip
     echo "Mengekstrak ${RUST_ARCHIVE}..."
