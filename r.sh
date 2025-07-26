@@ -39,6 +39,8 @@ link-shared = true
 [build]
 docs = false
 extended = true
+vendor = true  # Gunakan dependensi lokal
+offline = true  # Mode offline
 
 [install]
 prefix = "/opt/rustc-${RUST_VERSION}"
@@ -53,6 +55,12 @@ llvm-config = "/usr/bin/llvm-config"
 
 [target.i686-unknown-linux-gnu]
 llvm-config = "/usr/bin/llvm-config"
+[source.crates-io]
+replace-with = "local-registry"
+
+[source.local-registry]
+directory = "~/.cargo/registry/index"
+
 EOF
 
     # 6. Menyusun Rustc
