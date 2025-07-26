@@ -1,9 +1,9 @@
 import re
 
-certs_dir = "/usr/local/share/ca-certificates/mozilla/"
+certs_dir = "/usr/local/share/mozilla/"
 
 # Baca file certdata.txt
-with open("certdata.txt", "r") as f:
+with open("/etc/ssl/certdata.txt", "r") as f:
     cert_data = f.read()
 
 # Ekstrak sertifikat dari certdata.txt menggunakan regex
