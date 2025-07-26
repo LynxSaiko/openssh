@@ -1,19 +1,24 @@
 import re
 
+# Lokasi file certdata.txt
+certdata_path = "/etc/ssl/certdata.txt"
+
+# Lokasi output untuk menyimpan sertifikat .crt
 certs_dir = "/usr/local/share/mozilla/"
 
-# Baca file certdata.txt
-with open("/etc/ssl/certdata.txt", "r") as f:
-    cert_data = f.read()
+# Membaca file certdata.txt
+with open(certdata_path, 'r') as file:
+    data = file.read()
 
-# Ekstrak sertifikat dari certdata.txt menggunakan regex
-certs = re.findall(r"^CKA_CERTIFICATE\s+\"([^\"]+)\"\s+(.+?)^CKA_END", cert_data, re.S | re.M)
+# Regex untuk mengekstrak bagian sertifikat dari certdata.txt
+certs = re.findall(r"-----BEGIN CERTIFICATE-----(.*?)-----END CERTIFICATE-----", data, re.S)
 
-# Buat file untuk setiap sertifikat
-for cert in certs:
-    cert_name = cert[0].replace("/", "_").replace(":", "_")
-    cert_body = cert[1]
-    cert_filename = certs_dir + cert_name + ".crt"
-    
-    with open(cert_filename, "w") as cert_file:
-        cert_file.write(cert_body)
+# Menyimpan setiap sertifikat ke file .crt
+for i, cert in enumerate(certs):
+    cert_filename = f"{certs_dir}mozilla_cert_{i+1}.crt"
+    with open(cert_filename, 'w') as cert_file:
+        cert_file.write("-----BEGIN CERTIFICATE-----\n")
+        cert_file.write(cert)
+        cert_file.write("\n-----END CERTIFICATE-----\n")
+
+    print(f"Sertifikat disimpan di: {cert_filename}")
