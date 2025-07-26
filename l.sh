@@ -1,69 +1,147 @@
 #!/bin/bash
 
-# Direktori untuk OpenSSL dan CA
+# Direktori tempat OpenSSL dan konfigurasi disimpan
 OPENSSL_DIR="/opt/openssl-3.0.5"
-CA_DIR="/opt/openssl-ca"
-NEW_CERTS_DIR="$CA_DIR/newcerts"
-PRIVATE_DIR="$CA_DIR/private"
-CSR_FILE="$CA_DIR/my-server.csr"
-CERT_FILE="$NEW_CERTS_DIR/my-server-cert.crt"
-CA_CERT_FILE="$NEW_CERTS_DIR/my-ca-cert.crt"
-OPENSSL_CONF="$OPENSSL_DIR/ssl/openssl.cnf"
-KEY_FILE="$PRIVATE_DIR/my-ca-key.key"
+CONFIG_DIR="${OPENSSL_DIR}/ssl"
+KEY_DIR="${OPENSSL_DIR}/ssl/keys"
+CERT_DIR="${OPENSSL_DIR}/ssl/certs"
 
-# Pastikan direktori yang diperlukan ada
-mkdir -p $NEW_CERTS_DIR $PRIVATE_DIR
-
-# 1. Periksa apakah kunci privat (my-ca-key.key) ada, jika tidak buat kunci baru
-if [ ! -f "$KEY_FILE" ]; then
-    echo "Kunci privat tidak ditemukan. Membuat kunci privat baru..."
-    openssl genpkey -algorithm RSA -out $KEY_FILE -aes256
-    echo "Kunci privat dibuat di: $KEY_FILE"
-else
-    echo "Kunci privat sudah ada di: $KEY_FILE"
+# Pastikan direktori OpenSSL ada
+if [ ! -d "$OPENSSL_DIR" ]; then
+    echo "Direktori OpenSSL 3.0.5 tidak ditemukan di ${OPENSSL_DIR}. Pastikan OpenSSL sudah terpasang."
+    exit 1
 fi
 
-# 2. Periksa apakah sertifikat CA (my-ca-cert.crt) ada, jika tidak buat sertifikat baru
-if [ ! -f "$CA_CERT_FILE" ]; then
-    echo "Sertifikat CA tidak ditemukan. Membuat sertifikat CA baru..."
-    openssl req -new -x509 -key $KEY_FILE -out $CA_CERT_FILE -config $OPENSSL_CONF
-    echo "Sertifikat CA dibuat di: $CA_CERT_FILE"
-else
-    echo "Sertifikat CA sudah ada di: $CA_CERT_FILE"
-fi
+# Membuat direktori untuk kunci dan sertifikat
+mkdir -p ${KEY_DIR}
+mkdir -p ${CERT_DIR}
 
-# 3. Membuat CSR untuk server
-echo "Membuat CSR untuk server..."
-openssl req -new -key $KEY_FILE -out $CSR_FILE -config $OPENSSL_CONF
+# Nama file kunci dan sertifikat
+PRIVATE_KEY="${KEY_DIR}/private.key"
+CSR_FILE="${CERT_DIR}/request.csr"
+CERT_FILE="${CERT_DIR}/certificate.crt"
+CERT_PEM="${CERT_DIR}/cert.pem"
 
-# 4. Tandatangani CSR menggunakan CA dan buat sertifikat server
-echo "Menandatangani CSR dan membuat sertifikat server..."
-openssl ca -in $CSR_FILE -out $CERT_FILE -config $OPENSSL_CONF
+# 1. Membuat file openssl.cnf
+echo "Membuat konfigurasi openssl.cnf di ${CONFIG_DIR}/openssl.cnf..."
 
-# 5. Verifikasi sertifikat yang telah dibuat
-echo "Verifikasi sertifikat server..."
-openssl verify -CAfile $CA_CERT_FILE $CERT_FILE
+cat << EOF > ${CONFIG_DIR}/openssl.cnf
+# /opt/openssl-3.0.5/ssl/openssl.cnf
 
-# 6. Jika verifikasi gagal, coba buat ulang sertifikat
+# Konfigurasi Global
+openssl_conf = openssl_init
+
+# [openssl_init] - Tentukan parameter yang digunakan untuk membuka OpenSSL
+[openssl_init]
+engines = engine_section
+
+# [engine_section] - Tentukan engine yang digunakan
+[engine_section]
+# Digunakan jika Anda memiliki engine hardware atau custom
+#openssl_builtin = builtin_section
+
+# [builtin_section] - Konfigurasi engine bawaan OpenSSL
+# [openssl_init] adalah pengaturan utama yang akan digunakan saat inisialisasi
+
+# Konfigurasi default untuk sertifikat dan kunci
+[ca]
+default_ca = CA_default
+
+[CA_default]
+dir = /opt/openssl-3.0.5/ssl/  # Lokasi direktori untuk menyimpan sertifikat dan kunci
+certs = \$dir/certs
+crl_dir = \$dir/crl
+new_certs_dir = \$dir/newcerts
+database = \$dir/mydb
+private_key = \$dir/private/private.key
+certificate = \$dir/certs/ca.crt
+
+# Tentukan konfigurasi untuk CA
+[req]
+default_bits = 2048
+default_keyfile = privkey.pem
+distinguished_name = req_distinguished_name
+x509_extensions = v3_ca
+
+[req_distinguished_name]
+# Tentukan entri standar untuk pembuatan CSR (Certificate Signing Request)
+countryName_default = US
+stateOrProvinceName_default = California
+localityName_default = San Francisco
+organizationName_default = MyOrg
+organizationalUnitName_default = IT Department
+commonName_default = www.mywebsite.com
+
+[v3_ca]
+# Tentukan ekstensi untuk sertifikat
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = www.mywebsite.com
+DNS.2 = mywebsite.com
+EOF
+
+echo "Konfigurasi openssl.cnf telah dibuat di ${CONFIG_DIR}/openssl.cnf"
+
+# 2. Menetapkan variabel lingkungan untuk menggunakan openssl.cnf
+export OPENSSL_CONF="${CONFIG_DIR}/openssl.cnf"
+
+# 3. Membuat Kunci Privat RSA (Private Key)
+echo "Membuat kunci privat RSA..."
+openssl genpkey -algorithm RSA -out ${PRIVATE_KEY} -aes256
 if [ $? -ne 0 ]; then
-    echo "Verifikasi gagal! Membuat ulang sertifikat..."
-    openssl ca -in $CSR_FILE -out $CERT_FILE -config $OPENSSL_CONF
-    openssl verify -CAfile $CA_CERT_FILE $CERT_FILE
-    if [ $? -eq 0 ]; then
-        echo "Sertifikat berhasil ditandatangani dan diverifikasi."
-    else
-        echo "Verifikasi sertifikat gagal. Periksa konfigurasi dan file CSR."
-    fi
-else
-    echo "Sertifikat sudah berhasil diverifikasi."
+    echo "Gagal membuat kunci privat. Proses dihentikan."
+    exit 1
 fi
+echo "Kunci privat berhasil dibuat: ${PRIVATE_KEY}"
 
-# 7. Menampilkan Informasi Sertifikat yang dibuat
-echo "Menampilkan informasi sertifikat yang dibuat..."
-openssl x509 -in $CERT_FILE -text -noout
+# 4. Membuat Permintaan Sertifikat (CSR)
+echo "Membuat permintaan sertifikat (CSR)..."
+openssl req -new -key ${PRIVATE_KEY} -out ${CSR_FILE}
+if [ $? -ne 0 ]; then
+    echo "Gagal membuat CSR. Proses dihentikan."
+    exit 1
+fi
+echo "Permintaan sertifikat (CSR) berhasil dibuat: ${CSR_FILE}"
 
-# 8. Menampilkan Sertifikat CA yang ada
-echo "Menampilkan informasi Sertifikat CA..."
-openssl x509 -in $CA_CERT_FILE -text -noout
+# 5. Membuat Sertifikat Self-Signed
+echo "Membuat sertifikat self-signed..."
+openssl x509 -req -in ${CSR_FILE} -signkey ${PRIVATE_KEY} -out ${CERT_FILE} -days 365
+if [ $? -ne 0 ]; then
+    echo "Gagal membuat sertifikat. Proses dihentikan."
+    exit 1
+fi
+echo "Sertifikat self-signed berhasil dibuat: ${CERT_FILE}"
 
-echo "Selesai!"
+# 6. Menyimpan sertifikat dalam format PEM (jika dibutuhkan oleh aplikasi lain)
+cp ${CERT_FILE} ${CERT_PEM}
+echo "Sertifikat disalin ke ${CERT_PEM}."
+
+# 7. Mengonfigurasi Git, curl, wget, dan Python untuk menggunakan sertifikat ini
+
+# Konfigurasi Git
+echo "Mengonfigurasi Git untuk menggunakan sertifikat SSL..."
+export GIT_SSL_CAINFO="${CERT_PEM}"
+echo "Git SSL CAInfo diatur ke ${CERT_PEM}"
+
+# Konfigurasi curl
+echo "Mengonfigurasi curl untuk menggunakan sertifikat SSL..."
+export CURL_CA_BUNDLE="${CERT_PEM}"
+echo "curl CA bundle diatur ke ${CERT_PEM}"
+
+# Konfigurasi wget
+echo "Mengonfigurasi wget untuk menggunakan sertifikat SSL..."
+export WGETRC=/dev/null
+echo "wget RC diatur ke /dev/null"
+
+# Konfigurasi Python Requests (dan aplikasi lain yang menggunakan SSL)
+echo "Mengonfigurasi Python untuk menggunakan sertifikat SSL..."
+export REQUESTS_CA_BUNDLE="${CERT_PEM}"
+export PYTHONHTTPSVERIFY=0
+echo "Python HTTPS verify dimatikan dan menggunakan ${CERT_PEM}"
+
+# Verifikasi pengaturan
+echo "Verifikasi sertifikat SSL..."
+openssl x509 -in ${CERT_PEM} -text -noout
+
+echo "Sertifikat dan konfigurasi OpenSSL 3.0.5 selesai."
