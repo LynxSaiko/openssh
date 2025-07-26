@@ -20,7 +20,7 @@ if [ -d "${RUST_DIR}" ]; then
 else
     # 1. Unduh Rustc
     echo "Mengunduh Rustc versi ${RUST_VERSION}..."
-    wget --no-check-certificate ${RUST_URL} -O ${RUST_ARCHIVE}
+    wget ${RUST_URL} -O ${RUST_ARCHIVE}
 
     # 2. Ekstrak arsip
     echo "Mengekstrak ${RUST_ARCHIVE}..."
@@ -67,7 +67,7 @@ EOF
     export RUSTFLAGS="$RUSTFLAGS -C link-args=-lffi"
     export WGETRC=/dev/null
     export CURL_CA_BUNDLE=""  # Nonaktifkan verifikasi SSL untuk curl
-    python3 ./x.py build -j$(nproc) --exclude src/tools/miri --offline
+    python3 ./x.py build -j$(nproc) --exclude src/tools/miri
 
     # 7. Menjalankan tes (opsional, bisa menambah waktu build)
     # python3 ./x.py test --verbose --no-fail-fast | tee rustc-testlog
