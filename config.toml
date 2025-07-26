@@ -26,5 +26,3 @@ llvm-config = "/usr/bin/llvm-config"
 
 #[source.local-registry]
 #directory = "~/.cargo/registry/index"
-
-EOF
